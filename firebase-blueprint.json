@@ -1,0 +1,307 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Public creator profile for an authenticated Rs-ESP user (PII-free).",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "description": "Firebase Auth user UID matching the document ID.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "displayName": {
+          "type": "string",
+          "description": "Public creator display name.",
+          "minLength": 1,
+          "maxLength": 60
+        },
+        "photoURL": {
+          "type": "string",
+          "description": "Optional avatar image URL or empty string.",
+          "maxLength": 500
+        },
+        "bio": {
+          "type": "string",
+          "description": "Short hardware builder bio.",
+          "maxLength": 240
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when the profile was created."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when the profile was last updated."
+        }
+      },
+      "required": ["uid", "displayName", "photoURL", "bio", "createdAt", "updatedAt"]
+    },
+    "Sketch": {
+      "title": "Sketch",
+      "description": "An uploaded or published ESP32/ESP8266 firmware sketch with public or private visibility.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique sketch document ID.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "authorUid": {
+          "type": "string",
+          "description": "Creator Firebase Auth UID.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "authorName": {
+          "type": "string",
+          "description": "Creator display name shown on cards.",
+          "minLength": 1,
+          "maxLength": 60
+        },
+        "authorPhoto": {
+          "type": "string",
+          "description": "Creator avatar URL or empty string.",
+          "maxLength": 500
+        },
+        "title": {
+          "type": "string",
+          "description": "Sketch title.",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "summary": {
+          "type": "string",
+          "description": "Short project summary or explanation.",
+          "maxLength": 500
+        },
+        "code": {
+          "type": "string",
+          "description": "Firmware source code payload.",
+          "minLength": 1,
+          "maxLength": 100000
+        },
+        "boardId": {
+          "type": "string",
+          "description": "Target ESP board identifier.",
+          "minLength": 1,
+          "maxLength": 50
+        },
+        "boardName": {
+          "type": "string",
+          "description": "Human-readable target board name.",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "framework": {
+          "type": "string",
+          "description": "Firmware framework.",
+          "enum": ["arduino", "micropython", "espidf"]
+        },
+        "visibility": {
+          "type": "string",
+          "description": "Whether the sketch is published publicly or private to the author.",
+          "enum": ["public", "private"]
+        },
+        "tags": {
+          "type": "array",
+          "description": "Up to 8 topic tags."
+        },
+        "libraries": {
+          "type": "array",
+          "description": "Up to 12 required library names."
+        },
+        "wiring": {
+          "type": "array",
+          "description": "Up to 24 pin-to-pin wiring rows."
+        },
+        "baudRate": {
+          "type": "integer",
+          "description": "Serial monitor baud rate."
+        },
+        "likesCount": {
+          "type": "integer",
+          "description": "Atomic count of likes on this sketch."
+        },
+        "featured": {
+          "type": "boolean",
+          "description": "Optional admin-curated featured flag."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when sketch was uploaded."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when sketch was last modified."
+        }
+      },
+      "required": [
+        "id",
+        "authorUid",
+        "authorName",
+        "authorPhoto",
+        "title",
+        "summary",
+        "code",
+        "boardId",
+        "boardName",
+        "framework",
+        "visibility",
+        "tags",
+        "libraries",
+        "wiring",
+        "baudRate",
+        "likesCount",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "SketchLike": {
+      "title": "SketchLike",
+      "description": "Represents a single verified user's like on a public sketch.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "description": "Liker user UID matching document ID.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when liked."
+        }
+      },
+      "required": ["uid", "createdAt"]
+    },
+    "SketchComment": {
+      "title": "SketchComment",
+      "description": "A user comment on a public sketch.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Comment document ID.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "sketchId": {
+          "type": "string",
+          "description": "Parent sketch ID.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "sketchVisibility": {
+          "type": "string",
+          "description": "Parent sketch visibility snapshot (must be public).",
+          "enum": ["public"]
+        },
+        "authorUid": {
+          "type": "string",
+          "description": "Comment author UID.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "authorName": {
+          "type": "string",
+          "description": "Comment author display name.",
+          "minLength": 1,
+          "maxLength": 60
+        },
+        "authorPhoto": {
+          "type": "string",
+          "description": "Comment author avatar URL or empty string.",
+          "maxLength": 500
+        },
+        "body": {
+          "type": "string",
+          "description": "Comment body text.",
+          "minLength": 1,
+          "maxLength": 600
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when comment was posted."
+        }
+      },
+      "required": [
+        "id",
+        "sketchId",
+        "sketchVisibility",
+        "authorUid",
+        "authorName",
+        "authorPhoto",
+        "body",
+        "createdAt"
+      ]
+    },
+    "SiteConfig": {
+      "title": "SiteConfig",
+      "description": "Global platform announcement and community publishing controls managed by admins.",
+      "type": "object",
+      "properties": {
+        "announcementEnabled": { "type": "boolean" },
+        "announcementText": { "type": "string", "maxLength": 280 },
+        "allowNewPublicSketches": { "type": "boolean" },
+        "updatedBy": { "type": "string", "minLength": 1, "maxLength": 60 },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["announcementEnabled", "announcementText", "allowNewPublicSketches", "updatedBy", "updatedAt"]
+    },
+    "AdminRecord": {
+      "title": "AdminRecord",
+      "description": "Delegated admin entry keyed by Firebase Auth UID.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "email": { "type": "string", "maxLength": 120 },
+        "displayName": { "type": "string", "minLength": 1, "maxLength": 60 },
+        "addedBy": { "type": "string", "minLength": 1, "maxLength": 60 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email", "displayName", "addedBy", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "Public PII-free creator profiles keyed by Firebase Auth UID."
+    },
+    "/sketches/{sketchId}": {
+      "schema": { "$ref": "#/entities/Sketch" },
+      "description": "Community-published and private user ESP firmware sketches."
+    },
+    "/sketches/{sketchId}/likes/{userId}": {
+      "schema": { "$ref": "#/entities/SketchLike" },
+      "description": "Per-user like marker documents paired atomically with Sketch.likesCount."
+    },
+    "/sketches/{sketchId}/comments/{commentId}": {
+      "schema": { "$ref": "#/entities/SketchComment" },
+      "description": "Comments posted on public sketches."
+    },
+    "/siteConfig/global": {
+      "schema": { "$ref": "#/entities/SiteConfig" },
+      "description": "Global announcement banner and community controls."
+    },
+    "/admins/{uid}": {
+      "schema": { "$ref": "#/entities/AdminRecord" },
+      "description": "Delegated admin users managed by the primary owner."
+    }
+  }
+}

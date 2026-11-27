@@ -1,0 +1,297 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global default-deny safety net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerifiedUser() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    // Bootstrapped primary admin (zero get()/exists() calls so safe in allow list)
+    function isBootstrapAdmin() {
+      return isVerifiedUser() && request.auth.token.email == 'nonegaming0010@gmail.com';
+    }
+
+    // Primary admin or delegated admin in /admins/{uid}
+    function isAdmin() {
+      return isBootstrapAdmin()
+        || (isVerifiedUser() && exists(/databases/$(database)/documents/admins/$(request.auth.uid)));
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isValidUserProfile(data, userId) {
+      return data.keys().hasAll(['uid', 'displayName', 'photoURL', 'bio', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['uid', 'displayName', 'photoURL', 'bio', 'createdAt', 'updatedAt'])
+        && data.uid is string && data.uid == userId && data.uid.size() >= 1 && data.uid.size() <= 128
+        && data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 60
+        && data.photoURL is string && data.photoURL.size() <= 500
+        && data.bio is string && data.bio.size() <= 240
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidSketchShape(data, sketchId) {
+      return data.keys().hasAll([
+          'id', 'authorUid', 'authorName', 'authorPhoto', 'title', 'summary', 'code',
+          'boardId', 'boardName', 'framework', 'visibility', 'tags', 'libraries',
+          'wiring', 'baudRate', 'likesCount', 'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'id', 'authorUid', 'authorName', 'authorPhoto', 'title', 'summary', 'code',
+          'boardId', 'boardName', 'framework', 'visibility', 'tags', 'libraries',
+          'wiring', 'baudRate', 'likesCount', 'featured', 'createdAt', 'updatedAt'
+        ])
+        && isValidId(data.id) && data.id == sketchId
+        && data.authorUid is string && data.authorUid.size() >= 1 && data.authorUid.size() <= 128
+        && data.authorName is string && data.authorName.size() >= 1 && data.authorName.size() <= 60
+        && data.authorPhoto is string && data.authorPhoto.size() <= 500
+        && data.title is string && data.title.size() >= 1 && data.title.size() <= 100
+        && data.summary is string && data.summary.size() <= 500
+        && data.code is string && data.code.size() >= 1 && data.code.size() <= 100000
+        && data.boardId is string && data.boardId.size() >= 1 && data.boardId.size() <= 50
+        && data.boardName is string && data.boardName.size() >= 1 && data.boardName.size() <= 80
+        && data.framework in ['arduino', 'micropython', 'espidf']
+        && data.visibility in ['public', 'private']
+        && data.tags is list && data.tags.size() <= 8
+        && (data.tags.size() == 0 || (data.tags[0] is string && data.tags[0].size() >= 1 && data.tags[0].size() <= 32))
+        && data.libraries is list && data.libraries.size() <= 12
+        && (data.libraries.size() == 0 || (data.libraries[0] is string && data.libraries[0].size() >= 1 && data.libraries[0].size() <= 64))
+        && data.wiring is list && data.wiring.size() <= 24
+        && (data.wiring.size() == 0 || data.wiring[0] is map)
+        && data.baudRate is int && data.baudRate >= 300 && data.baudRate <= 2000000
+        && data.likesCount is int && data.likesCount >= 0
+        && (!('featured' in data) || data.featured is bool)
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidLike(data, userId) {
+      return data.keys().hasAll(['uid', 'createdAt'])
+        && data.keys().hasOnly(['uid', 'createdAt'])
+        && data.uid is string && data.uid == userId && data.uid.size() >= 1 && data.uid.size() <= 128
+        && data.createdAt is timestamp;
+    }
+
+    function isValidComment(data, sketchId, commentId) {
+      return data.keys().hasAll([
+          'id', 'sketchId', 'sketchVisibility', 'authorUid', 'authorName', 'authorPhoto', 'body', 'createdAt'
+        ])
+        && data.keys().hasOnly([
+          'id', 'sketchId', 'sketchVisibility', 'authorUid', 'authorName', 'authorPhoto', 'body', 'createdAt'
+        ])
+        && isValidId(data.id) && data.id == commentId
+        && isValidId(data.sketchId) && data.sketchId == sketchId
+        && data.sketchVisibility is string && data.sketchVisibility == 'public' && data.sketchVisibility.size() <= 16
+        && data.authorUid is string && data.authorUid.size() >= 1 && data.authorUid.size() <= 128
+        && data.authorName is string && data.authorName.size() >= 1 && data.authorName.size() <= 60
+        && data.authorPhoto is string && data.authorPhoto.size() <= 500
+        && data.body is string && data.body.size() >= 1 && data.body.size() <= 600
+        && data.createdAt is timestamp;
+    }
+
+    function isValidSiteConfig(data) {
+      return data.keys().hasAll(['announcementEnabled', 'announcementText', 'allowNewPublicSketches', 'updatedBy', 'updatedAt'])
+        && data.keys().hasOnly(['announcementEnabled', 'announcementText', 'allowNewPublicSketches', 'updatedBy', 'updatedAt'])
+        && data.announcementEnabled is bool
+        && data.announcementText is string && data.announcementText.size() <= 280
+        && data.allowNewPublicSketches is bool
+        && data.updatedBy is string && data.updatedBy.size() >= 1 && data.updatedBy.size() <= 60
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidAdminRecord(data, uid) {
+      return data.keys().hasAll(['uid', 'email', 'displayName', 'addedBy', 'createdAt'])
+        && data.keys().hasOnly(['uid', 'email', 'displayName', 'addedBy', 'createdAt'])
+        && isValidId(data.uid) && data.uid == uid
+        && data.email is string && data.email.size() <= 120
+        && data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 60
+        && data.addedBy is string && data.addedBy.size() >= 1 && data.addedBy.size() <= 60
+        && data.createdAt is timestamp;
+    }
+
+    // Startup connection check document
+    match /test/connection {
+      allow get: if true;
+      allow list, write: if false;
+    }
+
+    // Global platform announcement & settings
+    match /siteConfig/global {
+      allow get: if true;
+      allow list: if false;
+      allow create, update: if isAdmin()
+        && isValidSiteConfig(incoming())
+        && incoming().updatedAt == request.time;
+      allow delete: if isAdmin();
+    }
+
+    // Delegated admin registry (only bootstrap owner can list/create/update/delete)
+    match /admins/{uid} {
+      allow get: if isValidId(uid) && isSignedIn() && (request.auth.uid == uid || isAdmin());
+      allow list: if isBootstrapAdmin();
+      allow create, update: if isBootstrapAdmin()
+        && isValidId(uid)
+        && isValidAdminRecord(incoming(), uid)
+        && incoming().createdAt == request.time;
+      allow delete: if isBootstrapAdmin() && isValidId(uid);
+    }
+
+    // Public PII-free creator profiles
+    match /users/{userId} {
+      allow get: if isValidId(userId);
+      allow list: if isBootstrapAdmin();
+      allow create: if isVerifiedUser()
+        && isValidId(userId)
+        && request.auth.uid == userId
+        && isValidUserProfile(incoming(), userId)
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isVerifiedUser()
+        && isValidId(userId)
+        && request.auth.uid == userId
+        && isValidUserProfile(incoming(), userId)
+        && incoming().uid == existing().uid
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'photoURL', 'bio', 'updatedAt']);
+      allow delete: if isAdmin() && isValidId(userId);
+    }
+
+    // Community-published and private user sketches
+    match /sketches/{sketchId} {
+      allow get: if isValidId(sketchId)
+        && (existing().visibility == 'public' || (isSignedIn() && existing().authorUid == request.auth.uid) || isAdmin());
+
+      allow list: if existing().visibility == 'public'
+        || (isSignedIn() && existing().authorUid == request.auth.uid)
+        || isBootstrapAdmin();
+
+      allow create: if isVerifiedUser()
+        && isValidId(sketchId)
+        && isValidSketchShape(incoming(), sketchId)
+        && incoming().authorUid == request.auth.uid
+        && incoming().likesCount == 0
+        && !('featured' in incoming())
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+
+      allow update: if isVerifiedUser()
+        && isValidId(sketchId)
+        && isValidSketchShape(incoming(), sketchId)
+        && incoming().id == existing().id
+        && incoming().authorUid == existing().authorUid
+        && incoming().createdAt == existing().createdAt
+        && (
+          // Action 1: Author edits sketch metadata, code, or visibility (cannot alter featured)
+          (
+            existing().authorUid == request.auth.uid
+            && incoming().likesCount == existing().likesCount
+            && incoming().updatedAt == request.time
+            && incoming().diff(existing()).affectedKeys().hasOnly([
+              'authorName', 'authorPhoto', 'title', 'summary', 'code',
+              'boardId', 'boardName', 'framework', 'visibility',
+              'tags', 'libraries', 'wiring', 'baudRate', 'updatedAt'
+            ])
+          )
+          // Action 2: Atomic Like (must create /likes/{uid} in same batch)
+          || (
+            existing().visibility == 'public'
+            && incoming().diff(existing()).affectedKeys().hasOnly(['likesCount'])
+            && incoming().likesCount == existing().likesCount + 1
+            && !exists(/databases/$(database)/documents/sketches/$(sketchId)/likes/$(request.auth.uid))
+            && existsAfter(/databases/$(database)/documents/sketches/$(sketchId)/likes/$(request.auth.uid))
+          )
+          // Action 3: Atomic Unlike (must delete /likes/{uid} in same batch)
+          || (
+            existing().visibility == 'public'
+            && incoming().diff(existing()).affectedKeys().hasOnly(['likesCount'])
+            && incoming().likesCount == existing().likesCount - 1
+            && exists(/databases/$(database)/documents/sketches/$(sketchId)/likes/$(request.auth.uid))
+            && !existsAfter(/databases/$(database)/documents/sketches/$(sketchId)/likes/$(request.auth.uid))
+          )
+          // Action 4: Admin moderation (visibility, featured, metadata)
+          || (
+            isAdmin()
+            && incoming().likesCount == existing().likesCount
+            && incoming().updatedAt == request.time
+            && incoming().diff(existing()).affectedKeys().hasOnly([
+              'visibility', 'featured', 'title', 'summary', 'tags', 'updatedAt'
+            ])
+          )
+        );
+
+      allow delete: if isVerifiedUser()
+        && isValidId(sketchId)
+        && (existing().authorUid == request.auth.uid || isAdmin());
+
+      match /likes/{userId} {
+        allow get: if isValidId(sketchId)
+          && isValidId(userId)
+          && (
+            get(/databases/$(database)/documents/sketches/$(sketchId)).data.visibility == 'public'
+            || (isSignedIn() && request.auth.uid == userId)
+            || isAdmin()
+          );
+        allow list: if (isSignedIn() && existing().uid == request.auth.uid) || isBootstrapAdmin();
+        allow create: if isVerifiedUser()
+          && isValidId(sketchId)
+          && isValidId(userId)
+          && request.auth.uid == userId
+          && isValidLike(incoming(), userId)
+          && incoming().createdAt == request.time
+          && get(/databases/$(database)/documents/sketches/$(sketchId)).data.visibility == 'public'
+          && getAfter(/databases/$(database)/documents/sketches/$(sketchId)).data.likesCount == get(/databases/$(database)/documents/sketches/$(sketchId)).data.likesCount + 1;
+        allow update: if false;
+        allow delete: if isVerifiedUser()
+          && isValidId(sketchId)
+          && isValidId(userId)
+          && request.auth.uid == userId
+          && get(/databases/$(database)/documents/sketches/$(sketchId)).data.visibility == 'public'
+          && getAfter(/databases/$(database)/documents/sketches/$(sketchId)).data.likesCount == get(/databases/$(database)/documents/sketches/$(sketchId)).data.likesCount - 1;
+      }
+
+      match /comments/{commentId} {
+        allow get: if isValidId(sketchId)
+          && isValidId(commentId)
+          && (
+            get(/databases/$(database)/documents/sketches/$(sketchId)).data.visibility == 'public'
+            || (isSignedIn() && get(/databases/$(database)/documents/sketches/$(sketchId)).data.authorUid == request.auth.uid)
+            || isAdmin()
+          );
+        allow list: if existing().sketchId == sketchId
+          && (existing().sketchVisibility == 'public' || isBootstrapAdmin());
+        allow create: if isVerifiedUser()
+          && isValidId(sketchId)
+          && isValidId(commentId)
+          && isValidComment(incoming(), sketchId, commentId)
+          && incoming().authorUid == request.auth.uid
+          && incoming().createdAt == request.time
+          && get(/databases/$(database)/documents/sketches/$(sketchId)).data.visibility == 'public';
+        allow update: if false;
+        allow delete: if isVerifiedUser()
+          && isValidId(sketchId)
+          && isValidId(commentId)
+          && (existing().authorUid == request.auth.uid || isAdmin());
+      }
+    }
+  }
+}

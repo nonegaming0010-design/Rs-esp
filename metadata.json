@@ -1,0 +1,6 @@
+{
+  "name": "Rs-ESP",
+  "description": "AI-powered ESP32 and ESP8266 code generator with 120+ beginner projects, interactive pinout explorer, direct browser firmware uploader, and built-in serial monitor.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
